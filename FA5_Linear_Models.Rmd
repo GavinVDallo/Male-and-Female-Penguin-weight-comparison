@@ -1,0 +1,239 @@
+---
+title: "FA 5 - LINEAR MODELS: Palmer Penguins Dataset"
+output:
+  pdf_document:
+    latex_engine: xelatex
+date: "2026-10-08"
+---
+
+###Research Question:
+#Does penguin body mass differ according to species and sex, and does the effect of species on body mass depend on sex?
+#Factor 1: Species – Adelie, Chinstrap, Gentoo
+#Factor 2: Sex – Female, Male
+#Response Variable: Body Mass (body mass g)
+
+#Part A/1
+
+```{r setup-analysis, include=TRUE, warning=FALSE, message=FALSE}
+
+# a. & b. Download and Import the dataset directly from the official URL
+url <- "https://raw.githubusercontent.com/allisonhorst/palmerpenguins/main/inst/extdata/penguins.csv"
+penguins <- read.csv(url)
+
+# Save a local copy into your data/ folder for GitHub backup
+write.csv(penguins, "data/penguins.csv", row.names = FALSE)
+
+# c. Examine the structure of the dataset
+str(penguins)
+
+# d. Identify missing observations
+summary(penguins)
+
+# e. Remove observations with missing values in body_mass_g, species, and sex
+penguins_clean <- subset(
+  penguins,
+  !is.na(body_mass_g) &
+  !is.na(species) &
+  !is.na(sex)
+)
+
+# f. Convert species and sex into appropriate categorical/factor variables
+penguins_clean$species <- factor(penguins_clean$species)
+penguins_clean$sex <- factor(penguins_clean$sex)
+
+# g. Report the final sample size used in your analysis
+nrow(penguins_clean)
+```
+
+
+#Part B/2
+```{r part-b-eda, include=TRUE, warning=FALSE, message=FALSE}
+# 5.1 Descriptive Statistics
+cat("=== Overall Descriptive Statistics ===\n")
+summary(penguins_clean$body_mass_g)
+
+cat("\n=== Mean Body Mass by Species ===\n")
+aggregate(body_mass_g ~ species, data = penguins_clean, FUN = mean)
+
+cat("\n=== Mean Body Mass by Sex ===\n")
+aggregate(body_mass_g ~ sex, data = penguins_clean, FUN = mean)
+
+cat("\n=== Mean Body Mass by Species and Sex ===\n")
+aggregate(body_mass_g ~ species + sex, data = penguins_clean, FUN = mean)
+
+
+# 5.2 Visualization
+# STEP 1: Save the boxplot directly to your figures folder
+png("figures/body_mass_by_species.png", width = 800, height = 600, res = 120)
+boxplot(body_mass_g ~ sex * species, 
+        data = penguins_clean, 
+        col = c("pink", "lightblue"),
+        main = "Distribution of Penguin Body Mass by Species and Sex",
+        xlab = "Combination (Sex.Species)", 
+        ylab = "Body Mass (g)",
+        las = 2)
+dev.off() # Saves and closes the file connection
+
+# STEP 2: Duplicate plot syntax so it displays cleanly inline within your Markdown file
+boxplot(body_mass_g ~ sex * species, 
+        data = penguins_clean, 
+        col = c("pink", "lightblue"),
+        main = "Distribution of Penguin Body Mass by Species and Sex",
+        xlab = "Combination (Sex.Species)", 
+        ylab = "Body Mass (g)",
+        las = 2)
+```
+
+#5.3 Pattern Description
+#*Comparing Species about highest body mass:
+Taking a look at the data, the one with the highest body mass is the Gentoo species both male and femal, 
+which the male has 5484.836g, and the female has 4,679.741g.
+
+#*The sex that appears to have a higher body mass
+Reading from the data, across all species, males have higher body mass than females.
+
+#*The differences males and females appearance whether they'd be similar or not across species
+There's nothing similar here and the differences vary:
+-Gentoo has the largest gap (~805 g difference)
+-Adelie has a moderate gap (~675 g difference)
+-Chinstrap has the smallest gap (~412 g difference)
+
+
+#Part C/3
+#*a
+*Null hypothesis:The true mean body mass is equal across all three penguin species
+
+#*b
+*Alternative hypothesis:At least one penguin species has a true mean body mass that is different from the others
+
+#*c&d
+```{r part-c-oneway-anova, include=TRUE}
+
+# Fit the One-Way ANOVA model
+oneway_model <- aov(body_mass_g ~ species, data = penguins_clean)
+
+# Display the ANOVA table, F-statistic, degrees of freedom, and p-value
+summary(oneway_model)
+```
+
+#*e
+*Reject the null hypothesis due to the p-value significantly smaller than the standard significance threshold a=0.05
+
+#*f
+What this means is that there's an overwhelming significant different across different species about the body mass or the penguin's weight.
+
+
+#Part D/4
+```{r part-d-dummy-regression, include=TRUE}
+
+# Fit the equivalent dummy-variable regression model
+dummy_model <- lm(body_mass_g ~ species, data = penguins_clean)
+
+# Display the regression coefficients, R-squared, and F-statistic
+summary(dummy_model)
+```
+#*Reference Category:
+It is the Adelie penguin species, which if you take a look at r regression, following in first alphabetically order, which this is automatically dropped from the row coefficients and absorbed directly into the Intercept
+#*Dummy Variables:
+What represents is the estimated mean body mass of the reference group (Adelie penguins) and based on the data, the Adelie penguins have an average weight of 3,706.16g
+#*Regression Coefficient:
+The average weight difference between the remaining species and the reference group is shown by the slopes:
+-Chinstrap penguins weigh 26.92g more on average than Adelie penguins
+-Gentoo penguins weigh 1,386.44g more on average than Adelie penguins
+Gentoo penguins represents a massive, highly significant weight increase
+#*The relationship between the dummy-variable regression and the One-Way ANOVA results:
+The exact overall fit statistics match the One-Way ANOVA table:
+-The F-statistic is exactly 341.9 on 2 and 330 degrees of freedom
+-The p-value is exactly < 2.2 x 10^-16
+This concludes that One-Way ANOVA and a Dummy-Variable Regression model are mathematically identical is proven
+
+```{r part-e-twoway-anova, include=TRUE}
+# Fit the Two-Way ANOVA with interaction
+twoway_model <- aov(body_mass_g ~ species * sex, data = penguins_clean)
+
+# Display the ANOVA table results
+summary(twoway_model)
+```
+
+#Statistical results
+#*Main Effect of Species:F(2,327)=758.36 ,p < 2 x 10^-16
+The average body mass differs significantly across the three species
+#*Main Effect of Sex:F(1,327)=387.46 ,p < 10^-16
+There is a highly significant difference in average body mass between male and female penguins overall (with males being significantly heavier)
+#*Interaction Effect (Species × Sex):F(2,327)=8.76 ,p=0.000197
+Since this is below a=0.05, there is a significant interaction between species and sex and the effect of species on a penguin's body mass depends on its sex while also significantly depending different species
+
+#Part F/6
+```{r part-f-interaction-plot, include=TRUE}
+# STEP 1: Save the interaction plot to your figures folder
+png("figures/species_sex_interaction.png", width = 800, height = 600, res = 120)
+interaction.plot(
+  x.factor = penguins_clean$species,
+  trace.factor = penguins_clean$sex,
+  response = penguins_clean$body_mass_g,
+  fun = mean,
+  type = "b",
+  col = c("darkred", "darkblue"),
+  pch = c(16, 17),
+  xlab = "Penguin Species",
+  ylab = "Mean Body Mass (g)",
+  trace.label = "Sex"
+)
+dev.off() # Saves and closes the file connection
+
+# STEP 2: Duplicate plot syntax so it displays inline within your Markdown file
+interaction.plot(
+  x.factor = penguins_clean$species,
+  trace.factor = penguins_clean$sex,
+  response = penguins_clean$body_mass_g,
+  fun = mean,
+  type = "b",
+  col = c("darkred", "darkblue"),
+  pch = c(16, 17),
+  xlab = "Penguin Species",
+  ylab = "Mean Body Mass (g)",
+  trace.label = "Sex"
+)
+```
+#Visual Observation:
+Looking the graph representing the mean body mass using the linear graph, males and females are plainly non-parallel
+#Interpretation of the Slopes:
+We already see that males are heavier than females, across three species, Adelie & Gentoo show a massive, steep vertical gap between males and females while Chinstrap shows a much smaller sex gap
+#Conclusion:
+Since the visual shows to lack of parallelism confirms the statistically significant interaction effect found from part E.
+It is now proven that the effect of a penguin's sex on its body mass is not constant and it depends heavily on the species being examined
+
+
+#Part G/7
+```{r part-g-full-model, include=TRUE}
+
+# Fit the full linear regression model with interaction
+full_model <- lm(body_mass_g ~ species * sex, data = penguins_clean)
+
+# Display the regression coefficients table, R-squared, and overall statistics
+summary(full_model)
+```
+#Baseline Group:
+Adelie females are the omitted baseline group since R defaults to the first category alphabetically for both categorical variables
+#Intercept:
+What this represents is the estimated average body mass for an Adelie Female penguin which is approximately 3,368.8g
+#Main Effect Coefficients:
+This is reflected about the relative change to the baseline group when holding other baseline settings constant:
+-The "speciesChinstrap" represents the average weight difference between a Chinstrap Female and an Adelie Female
+-While the "speciesGentoo" represents the average weight difference between a Gentoo Female and an Adelie Female
+-And the "sexmale" represents the average weight difference between an Adelie Male and an Adelie Female and no other species to include here
+#Interaction Coefficients:
+The variables or coefficients has an interaction term with the ":" symbol, indicating two coefficients connected or intereacted, what represents here is the additional adjustment to the male weight gap for that specific species compared to the baseline species gap, and the male weight premium is just not identical across species
+
+
+###Let's get back to the original research question...
+#"Does penguin body mass differ according to species and sex, and does the effect of species on body mass depend on sex?"
+#Statistical Evidence:
+The statistical evidence is the species effect, based on the data, Gentoo penguins are heavier on average than both Adelie and Chinstrap penguins and doesn't matter with the sex comparison. Although Adelie and Chinstrap penguins have much closer average weights
+#Observed patterns:
+The observed pattern is the sex effect, observing within every single pieces, this shows that the male penguins are consistently heavier than the female penguins
+#Practical interpretation:
+The practical interpretation is the interaction effect, when comparing the weight gap between males and females, it is not uniform. Based on the data on why it is not uniform, this is because the male weight premium is largest among Gentoo penguins (~805g gap) and smallest among Chinstrap penguins (~412g gap), and this may apply to other research statistics similar to this
+#
+Based on the full linear regression model with interaction terms, this shows that it is approximately 81.4% of the total variance in penguin body mass
+
